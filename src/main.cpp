@@ -9,20 +9,21 @@ namespace kernels::ocl {
 
 
 int main() {
+    int error;
+
     auto platforms = std::vector<cl::Platform>();
     cl::Platform::get(&platforms);
 
     auto devices = std::vector<cl::Device>();
     platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
-    auto ctx = cl::Context(devices);
-
-    auto queue = cl::CommandQueue(ctx);
+    auto ctx = cl::Context(devices, 0, 0, 0, &error);
+    auto queue = cl::CommandQueue(ctx, ctx.getInfo<CL_CONTEXT_DEVICES>()[0], CL_QUEUE_PROFILING_ENABLE, &error);
 
     std::cout << ctx.getInfo<CL_CONTEXT_DEVICES>()[0].getInfo<CL_DEVICE_NAME>() << std::endl;
 
     cl::Program program(ctx, kernels::ocl::kernel_add);
-    program.build();
+    error = program.build(devices);
 
     cl::Kernel test_kernel(program, "gid");
 
@@ -35,8 +36,7 @@ int main() {
 
     unsigned int result[1024];
 
-    auto error = queue.enqueueNDRangeKernel(test_kernel, cl::NullRange, global, local);
-    std::cout << error << std::endl;
+    error = queue.enqueueNDRangeKernel(test_kernel, cl::NullRange, global, local);
     queue.enqueueReadBuffer(a, CL_TRUE, 0, 1024 * sizeof(int), result);
 
     std::cout << result[11] << std::endl;
