@@ -18,12 +18,29 @@ int main() {
     platforms[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
     auto ctx = cl::Context(devices, 0, 0, 0, &error);
+
+    if (error != 0) {
+        std::cout << "Cannot create context!" << std::endl;
+        exit(-1);
+    }
+
     auto queue = cl::CommandQueue(ctx, ctx.getInfo<CL_CONTEXT_DEVICES>()[0], CL_QUEUE_PROFILING_ENABLE, &error);
 
-    std::cout << ctx.getInfo<CL_CONTEXT_DEVICES>()[0].getInfo<CL_DEVICE_NAME>() << std::endl;
+    if (error != 0) {
+        std::cout << "Cannot create command queue!" << std::endl;
+        exit(-1);
+    }
+
+    // Uncomment it if you want to know which device is being used.
+    // std::cout << ctx.getInfo<CL_CONTEXT_DEVICES>()[0].getInfo<CL_DEVICE_NAME>() << std::endl;
 
     cl::Program program(ctx, kernels::ocl::kernel_add);
     error = program.build(devices);
+
+    if (error != 0) {
+        std::cout << "Cannot build kernel!" << std::endl;
+        exit(-1);
+    }
 
     cl::Kernel test_kernel(program, "gid");
 
@@ -39,5 +56,13 @@ int main() {
     error = queue.enqueueNDRangeKernel(test_kernel, cl::NullRange, global, local);
     queue.enqueueReadBuffer(a, CL_TRUE, 0, 1024 * sizeof(int), result);
 
-    std::cout << result[11] << std::endl;
+    for (unsigned int i = 0; i < 1024; i++) {
+        if (result[i] != i) {
+            std::cout << "Wrong data returned from kernel!" << std::endl;
+            exit(-1);
+        }
+    }
+
+    std::cout << "Result is OK" << std::endl;
+
 }
